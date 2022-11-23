@@ -17,7 +17,6 @@ class MongoDB:
     # if fail to handshake to mongodb, release the content below
     # ca = certifi.where()
     __settings = {
-        # "uri": "mongodb+srv://test1:a12345@comp5521.banljfk.mongodb.net/",
         "uri": "mongodb://localhost:27017",
         "db": "project3",
     }
