@@ -9,6 +9,9 @@ from random import choice
 def choose_winner(announcements, My_Lock, temp_blocks, validators, block_chain):
     time.sleep(2)
     while True:
+        # print('Validators in this round')
+        # print(validators)
+
         with My_Lock:
             temp = temp_blocks
         lottery_pool = []
@@ -21,7 +24,7 @@ def choose_winner(announcements, My_Lock, temp_blocks, validators, block_chain):
                         for i in range(k):
                             lottery_pool.append(block["Validator"])
             lottery_winner = choice(lottery_pool)
-            print(lottery_winner)
+
             # add block of winner to blockchain and let all the other nodes known
             for block in temp:
                 if block["Validator"] == lottery_winner:
@@ -35,7 +38,8 @@ def choose_winner(announcements, My_Lock, temp_blocks, validators, block_chain):
                     break
             # add one more record in lottery_pool(credit score + 1)
             validators[lottery_winner] += 1
-            print(validators)
+            print('The validator of this round is: ' + str(lottery_winner))
+            print('Validators credit point is: ' + str(validators[lottery_winner]))
         with My_Lock:
             temp_blocks.clear()
 

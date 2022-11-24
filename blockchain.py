@@ -6,9 +6,10 @@ from hashlib import sha256
 from queue import Queue, Empty
 from socketserver import ThreadingTCPServer, BaseRequestHandler
 from mongoDB import MongoDB
-from block import calculate_hash, check_valid, create_block
+from block import calculate_hash, check_valid, create_block, genesis_block
 from pos import candidate, choose_winner
-
+from transactions import Transaction
+from bson import json_util
 
 
 # need two queue
@@ -25,42 +26,45 @@ class HandleConn(BaseRequestHandler):
     def handle(self):
         print("Got connection from", self.client_address)
         # initial credit score = 10
-        balance = 10
+        balance = 100
         t = str(datetime.now())
         address = sha256(t.encode()).hexdigest()
         validators[address] = balance
-        print(validators)
+        print('Validator\'s address is ' + address)
+        print('Validator\'s credit point is ' + str(validators[address]))
         while True:
             announce_winner_t = threading.Thread(target=broadcast_winner, args=(announcements, self.request,),
                                                  daemon=True)
             announce_winner_t.start()
-            self.request.send(b"\nEnter a new Transaction:")
-            tx = self.request.recv(8192)
+            self.request.send(b"\nEnter a new Transaction:(to_address amount)\n")
+            data = self.request.recv(8192).decode('utf-8')
             try:
-                tx = int(tx)
+                data = data.split()
+                to_address = data[0]
+                tx = int(data[1])
             except Exception as e:
                 print(e)
                 address = validators[address]
                 del validators[address]
                 break
-            data = {
-                "txID": '',
-                "amount": tx,
-                "from": address,
-                "to": ""
-                    }
-            MongoDB().insertOne('transactions', data)
+
+            data = []
+            transaction = Transaction(address, to_address, tx).toDict()
+            data.append(transaction['txID'])
+
+            MongoDB().insertOne('transactions', transaction)
             MongoDB().close_connect()
             for x in MongoDB().getlast('blockchain'):
                 last_block = x
             MongoDB().close_connect()
-            for x in MongoDB().getAll('transactions'):
-                tx = x["amount"]
-            MongoDB().close_connect()
-            new_block = create_block(last_block, tx, address)
+
+            new_block = create_block(last_block, data, address)
+
+
             if check_valid(new_block, last_block):
                 print("new block is valid!")
                 candidate_blocks.put(new_block)
+            temp_blocks.append(new_block)
             broadcast_blockchain_t = threading.Thread(target=broadcast_blockchain,
                                                       args=(self.request,), daemon=True)
             broadcast_blockchain_t.start()
@@ -75,8 +79,8 @@ def broadcast_winner(announcements, request):
     while True:
         try:
             msg = announcements.get(block=False)
-            request.send(msg.encode())
-            request.send(b'\n')
+            request.send(msg.encode('utf-8'))
+            # request.send(b'\n')
         except Empty:
             time.sleep(3)
             continue
@@ -93,11 +97,10 @@ def broadcast_blockchain(request):
             blockchain = []
             for x in MongoDB().getAll('blockchain'):
                 blockchain.append(x)
-
-            output = json.dumps(blockchain)
+            output = json.dumps(blockchain, indent=4, default=json_util.default)
         try:
             request.send(output.encode())
-            request.send(b'\n')
+            # request.send(b'\n')
         except OSError:
             pass
 
@@ -107,20 +110,10 @@ def run():
         check = x
     MongoDB().close_connect()
     if check is None:
-        t = str(datetime.now())
-        genesis_block = {
-            "Index": 0,
-            "Timestamp": t,
-            "TX": 0,
-            "PrevHash": "",
-            "Validator": ""
-        }
-        genesis_block["Hash"] = calculate_hash(genesis_block)
-        print(genesis_block)
-        block_chain.append(genesis_block)
-        # TODO: done
-        # put block_chain into MongoDB.
-        MongoDB().insertOne('blockchain', genesis_block)
+        genesis = genesis_block()
+        print(genesis)
+        block_chain.append(genesis)
+        MongoDB().insertOne('blockchain', genesis)
         MongoDB().close_connect()
     thread_canditate = threading.Thread(target=candidate, args=(candidate_blocks, temp_blocks), daemon=True)
     thread_pick = threading.Thread(target=choose_winner, args=(announcements, My_Lock, temp_blocks, validators,

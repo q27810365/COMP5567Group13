@@ -2,7 +2,6 @@ from datetime import datetime
 from hashlib import sha256
 
 
-
 def create_block(prevblock, tx, address):
     """
     :param prevblock:
@@ -19,8 +18,34 @@ def create_block(prevblock, tx, address):
     }
 
     newblock["Hash"] = calculate_hash(newblock)
-    return newblock
+    return {
+        "Index": newblock["Index"],
+        "Hash": newblock["Hash"],
+        "PrevHash": newblock["Hash"],
+        "Timestamp": newblock["Timestamp"],
+        "TX": newblock["TX"],
+        "Validator": newblock["Validator"],
+    }
 
+
+def genesis_block():
+    newblock = {
+        "Index": 0,
+        "TX": [],
+        "Timestamp": str(datetime.now()),
+        "PrevHash": '',
+        "Validator": ''
+    }
+    newblock["Hash"] = calculate_hash(newblock)
+
+    return {
+        "Index": newblock["Index"],
+        "Hash": newblock["Hash"],
+        "PrevHash": newblock["PrevHash"],
+        "Timestamp": newblock["Timestamp"],
+        "TX": newblock["TX"],
+        "Validator": newblock["Validator"],
+    }
 
 def calculate_hash(block):
     record = "".join([
