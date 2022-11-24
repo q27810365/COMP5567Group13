@@ -9,6 +9,8 @@ from mongoDB import MongoDB
 from block import calculate_hash, check_valid, create_block
 from pos import candidate, choose_winner
 
+
+
 # need two queue
 # 定义变量
 block_chain = []
@@ -42,8 +44,10 @@ class HandleConn(BaseRequestHandler):
                 del validators[address]
                 break
             data = {
+                "txID": '',
                 "amount": tx,
-                "owner": address
+                "from": address,
+                "to": ""
                     }
             MongoDB().insertOne('transactions', data)
             MongoDB().close_connect()
@@ -51,7 +55,7 @@ class HandleConn(BaseRequestHandler):
                 last_block = x
             MongoDB().close_connect()
             for x in MongoDB().getAll('transactions'):
-                tx = x["tx"]
+                tx = x["amount"]
             MongoDB().close_connect()
             new_block = create_block(last_block, tx, address)
             if check_valid(new_block, last_block):
